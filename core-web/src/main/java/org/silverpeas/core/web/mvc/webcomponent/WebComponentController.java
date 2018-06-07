@@ -75,7 +75,7 @@ public abstract class WebComponentController<WEB_COMPONENT_REQUEST_CONTEXT exten
 
   /**
    * Permits to perform some common initializations. The method is called just before the method
-   * behing the identified path is invoked.
+   * behind the identified path is invoked.
    * @param context the context of the request in relation with the web controller
    */
   protected void beforeRequestProcessing(WEB_COMPONENT_REQUEST_CONTEXT context) {

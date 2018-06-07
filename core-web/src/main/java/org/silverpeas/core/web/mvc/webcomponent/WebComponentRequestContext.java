@@ -28,6 +28,7 @@ import org.silverpeas.core.admin.user.model.UserDetail;
 import org.silverpeas.core.contribution.model.ContributionIdentifier;
 import org.silverpeas.core.subscription.util.SubscriptionManagementContext;
 import org.silverpeas.core.util.LocalizationBundle;
+import org.silverpeas.core.util.StringUtil;
 import org.silverpeas.core.util.URLUtil;
 import org.silverpeas.core.web.http.HttpRequest;
 import org.silverpeas.core.web.mvc.util.AlertUser;
@@ -264,30 +265,25 @@ public class WebComponentRequestContext<CONTROLLER extends WebComponentControlle
     return new Navigation(path);
   }
 
-  private UriBuilder normalizeRedirectPath(UriBuilder uriBuilder, String path) {
-    int indexOfUriParamSplit = path.indexOf('?');
-    if (indexOfUriParamSplit >= 0) {
+  private UriBuilder normalizeRedirectPath(final UriBuilder uriBuilder, final String path) {
+    String expandedPath = expandRedirectVariables(path.replaceAll("/\\s*$", ""));
+    return parseUriPath(uriBuilder, expandedPath);
+  }
 
-      // URI part
-      String uriPart = path.substring(0, indexOfUriParamSplit);
-      uriBuilder.path(replaceRedirectVariables(uriPart.replaceAll("/\\s*$", "")));
-
-      // Params part
-      String paramPart = path.substring(indexOfUriParamSplit + 1);
-      StringTokenizer paramPartTokenizer = new StringTokenizer(paramPart, "&");
-      while (paramPartTokenizer.hasMoreTokens()) {
-        String param = paramPartTokenizer.nextToken();
-        int indexOfEqual = param.indexOf('=');
-        if (indexOfEqual > 0) {
-          String paramName = param.substring(0, indexOfEqual);
-          String paramValue = param.substring(indexOfEqual + 1);
-          uriBuilder.queryParam(paramName, replaceRedirectVariables(paramValue));
-        } else {
-          uriBuilder.queryParam(replaceRedirectVariables(param));
+  private UriBuilder parseUriPath(final UriBuilder uriBuilder, final String path) {
+    String fixedPath = path.replace("/?", "?");
+    int queryStartIdx = fixedPath.indexOf('?');
+    if (queryStartIdx >= 0) {
+      uriBuilder.path(fixedPath.substring(0, queryStartIdx));
+      StringTokenizer tokenizer = new StringTokenizer(fixedPath.substring(queryStartIdx + 1), "&");
+      while (tokenizer.hasMoreTokens()) {
+        final String[] param = tokenizer.nextToken().split("=");
+        if (param.length == 2 && StringUtil.isDefined(param[0]) && StringUtil.isDefined(param[1])) {
+          uriBuilder.queryParam(param[0], expandRedirectVariables(param[1]));
         }
       }
     } else {
-      uriBuilder.path(replaceRedirectVariables(path.replaceAll("/\\s*$", "")));
+      uriBuilder.path(path);
     }
     return uriBuilder;
   }
@@ -296,7 +292,7 @@ public class WebComponentRequestContext<CONTROLLER extends WebComponentControlle
    * @param redirectPath
    * @return
    */
-  private String replaceRedirectVariables(String redirectPath) {
+  private String expandRedirectVariables(final String redirectPath) {
     String newPath = redirectPath;
 
     Matcher variableMatcher = REDIRECT_VARIABLE_MATCHER.matcher(redirectPath);

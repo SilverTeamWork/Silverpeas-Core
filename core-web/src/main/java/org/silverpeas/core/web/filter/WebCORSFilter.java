@@ -54,6 +54,9 @@ public class WebCORSFilter implements Filter {
 
   private static final SettingBundle settings = ResourceLocator.getGeneralSettingBundle();
   private static final String ALL_DOMAINS_ALLOWED = "*";
+  private static final String ALLOWED_HEADERS = "Content-Type, " +
+      UserPrivilegeValidation.HTTP_SESSIONKEY + ", " +
+      UserPrivilegeValidation.HTTP_AUTHORIZATION;
 
   /*
    * (non-Javadoc)
@@ -71,10 +74,9 @@ public class WebCORSFilter implements Filter {
 
     // In case of detection of an OPTIONS HTTP method, additional headers are filled.
     if (HttpMethod.OPTIONS.name().equals(httpRequest.getMethod())) {
+      httpResponse.addHeader("Access-Control-Request-Headers", ALLOWED_HEADERS);
       httpResponse.addHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, OPTIONS");
-      httpResponse.addHeader("Access-Control-Allow-Headers", "Content-Type, " +
-          UserPrivilegeValidation.HTTP_SESSIONKEY + ", " +
-          UserPrivilegeValidation.HTTP_AUTHORIZATION);
+      httpResponse.addHeader("Access-Control-Allow-Headers", ALLOWED_HEADERS);
     }
 
     // The request treatment continue.

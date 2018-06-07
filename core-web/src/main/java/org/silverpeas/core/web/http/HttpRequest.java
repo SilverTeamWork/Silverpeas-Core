@@ -40,6 +40,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import java.io.UnsupportedEncodingException;
+import java.security.Principal;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,6 +69,7 @@ import static org.silverpeas.core.web.http.RequestParameterDecoder.*;
 public class HttpRequest extends HttpServletRequestWrapper {
 
   private List<FileItem> fileItems = null;
+  private boolean defaultBehavior = true;
   private SettingBundle generalSettings = ResourceLocator.getGeneralSettingBundle();
 
   private HttpRequest(HttpServletRequest request) {
@@ -97,6 +99,25 @@ public class HttpRequest extends HttpServletRequestWrapper {
    */
   public static HttpRequest decorate(final ServletRequest request) {
     return decorate((HttpServletRequest) request);
+  }
+
+  /**
+   * Sets the behavior of this request wrapper to the expected behavior of the wrapped Http request.
+   * In this default behavior the multipart/form-data stream isn't parsed while getting the
+   * request parameters. This is useful when you have to use tiers web components or your code
+   * requires the multipart/form-data stream not automatically processed for any reason.
+   */
+  public void setDefaultBehavior() {
+    this.defaultBehavior = true;
+  }
+
+  /**
+   * Is this Http request wrapper behaves like its wrapped request? If true, then
+   * multipart/form-data stream isn't parsed while getting the request parameters.
+   * @return true if this wrapper behaves like the wrapped request.
+   */
+  public boolean isDefaultBehavior() {
+    return this.defaultBehavior;
   }
 
   /**
@@ -245,8 +266,10 @@ public class HttpRequest extends HttpServletRequestWrapper {
 
   /**
    * Returns an array of String objects containing all of the values the given request parameter
-   * has, or null if the parameter does not exist. The parameters from a multipart/form-data stream
-   * are also considered by this method, unlike of the default behavior of the decorated request.
+   * has, or null if the parameter does not exist. Unless asked otherwise with the
+   * {@link HttpRequest#setDefaultBehavior()} method, the parameters from a multipart/form-data
+   * stream are also considered by this method, unlike of the default behavior of the decorated
+   * request.
    *
    * If the parameter has a single value, the array has a length of 1.
    *
@@ -256,17 +279,18 @@ public class HttpRequest extends HttpServletRequestWrapper {
   @Override
   public String[] getParameterValues(String name) {
     String[] values = super.getParameterValues(name);
-    if (values == null && isContentInMultipart()) {
+    if (values == null && isContentInMultipart() && !isDefaultBehavior()) {
       List<String> listOfValues =
           FileUploadUtil.getParameterValues(getFileItems(), name, getCharacterEncoding());
-      values = listOfValues.toArray(new String[listOfValues.size()]);
+      values = listOfValues.toArray(new String[0]);
     }
     return values;
   }
 
   /**
    * Returns an Enumeration of String objects containing the names of the parameters contained in
-   * this request. If the request has no parameters, the method returns an empty Enumeration. The
+   * this request. If the request has no parameters, the method returns an empty Enumeration.
+   * Unless asked otherwise with the {@link HttpRequest#setDefaultBehavior()} method, the
    * parameters from a multipart/form-data stream are also considered by this method, unlike of the
    * default behavior of the decorated request.
    *
@@ -276,7 +300,7 @@ public class HttpRequest extends HttpServletRequestWrapper {
   @Override
   public Enumeration<String> getParameterNames() {
     Enumeration<String> names = super.getParameterNames();
-    if (!names.hasMoreElements() && isContentInMultipart()) {
+    if (!names.hasMoreElements() && isContentInMultipart() && !isDefaultBehavior()) {
       List<FileItem> items = getFileItems();
       List<String> itemNames = new ArrayList<>(items.size());
       for (FileItem item : items) {
@@ -293,7 +317,8 @@ public class HttpRequest extends HttpServletRequestWrapper {
    * Returns a java.util.Map of the parameters of this request.
    *
    * Request parameters are extra information sent with the request. For HTTP servlets, parameters
-   * are contained in the query string or posted form data. The parameters from a
+   * are contained in the query string or posted form data. Unless asked otherwise with the
+   * {@link HttpRequest#setDefaultBehavior()} method, The parameters from a
    * multipart/form-data stream are also considered by this method, unlike of the default behavior
    * of the decorated request.
    *
@@ -304,7 +329,7 @@ public class HttpRequest extends HttpServletRequestWrapper {
   @Override
   public Map<String, String[]> getParameterMap() {
     Map<String, String[]> map = super.getParameterMap();
-    if (map.isEmpty() && isContentInMultipart()) {
+    if (map.isEmpty() && isContentInMultipart() && !isDefaultBehavior()) {
       List<FileItem> items = getFileItems();
       map = new HashMap<>(items.size());
       for (FileItem item : items) {
@@ -362,7 +387,8 @@ public class HttpRequest extends HttpServletRequestWrapper {
   /**
    * Returns the value of a request parameter as a String, or null if the parameter does not exist.
    * Request parameters are extra information sent with the request. For HTTP servlets, parameters
-   * are contained in the query string or posted form data. The parameters from a
+   * are contained in the query string or posted form data. Unless asked otherwise with the
+   * {@link HttpRequest#setDefaultBehavior()} method, The parameters from a
    * multipart/form-data stream are also considered by this method, unlike of the default behavior
    * of the decorated request.
    *
@@ -382,7 +408,7 @@ public class HttpRequest extends HttpServletRequestWrapper {
   @Override
   public String getParameter(String name) {
     String value = super.getParameter(name);
-    if (value == null && isContentInMultipart()) {
+    if (value == null && isContentInMultipart() && !isDefaultBehavior()) {
       value = FileUploadUtil.getParameter(getFileItems(), name, null, getCharacterEncoding());
     }
     return value;
@@ -582,5 +608,17 @@ public class HttpRequest extends HttpServletRequestWrapper {
       encoding = FileUploadUtil.DEFAULT_ENCODING;
     }
     return encoding;
+  }
+
+  @Override
+  public Principal getUserPrincipal() {
+    Principal principal = super.getUserPrincipal();
+    if (principal == null) {
+      User current = User.getCurrentRequester();
+      if (current != null) {
+        principal = new SilverpeasPrincipal(User.getCurrentRequester());
+      }
+    }
+    return principal;
   }
 }

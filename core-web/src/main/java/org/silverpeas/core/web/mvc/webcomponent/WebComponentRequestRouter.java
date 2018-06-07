@@ -40,19 +40,17 @@ import java.io.IOException;
 
 /**
  * This request router is an extension of the historical one. It provides a new way to perform the
- * requests on the server, especially by annoting methods that must be invoked.
+ * requests on the server, especially by annotating methods that must be invoked.
  * @param <T> the type of the Component Session Controller that provides a lot of stuff around
  * the component, the user, etc.
- * @param <WEB_COMPONENT_REQUEST_CONTEXT> the type of the web component context.
+ * @param <U> the type of the web component context.
  */
-public final class WebComponentRequestRouter<
-    T extends WebComponentController<WEB_COMPONENT_REQUEST_CONTEXT>,
-    WEB_COMPONENT_REQUEST_CONTEXT extends WebComponentRequestContext<? extends
-        WebComponentController>>
+public final class WebComponentRequestRouter<T extends WebComponentController<U>, U extends
+    WebComponentRequestContext<? extends WebComponentController>>
     extends ComponentRequestRouter<T> {
   private static final long serialVersionUID = -3344222078427488724L;
 
-  private final static String WEB_COMPONENT_CONTROLLER_CLASS_NAME_PARAM =
+  private static final String WEB_COMPONENT_CONTROLLER_CLASS_NAME_PARAM =
       org.silverpeas.core.web.mvc.webcomponent.annotation.WebComponentController.class
           .getSimpleName();
 
@@ -101,32 +99,32 @@ public final class WebComponentRequestRouter<
   @Override
   protected void doPut(final HttpServletRequest request, final HttpServletResponse response)
       throws ServletException, IOException {
-    WebComponentManager
-        .manageRequestFor(webComponentControllerClass, PUT.class, (HttpRequest) request, response);
+    WebComponentManager.manageRequestFor(webComponentControllerClass, PUT.class,
+        toHttpRequest(request), response);
     super.doPost(request, response);
   }
 
   @Override
   protected void doDelete(final HttpServletRequest request, final HttpServletResponse response)
       throws ServletException, IOException {
-    WebComponentManager
-        .manageRequestFor(webComponentControllerClass, DELETE.class, (HttpRequest) request,
+    WebComponentManager.manageRequestFor(webComponentControllerClass, DELETE.class,
+        toHttpRequest(request),
             response);
     super.doPost(request, response);
   }
 
   @Override
   public void doPost(final HttpServletRequest request, final HttpServletResponse response) {
-    WebComponentManager
-        .manageRequestFor(webComponentControllerClass, POST.class, (HttpRequest) request, response);
+    WebComponentManager.manageRequestFor(webComponentControllerClass, POST.class,
+        toHttpRequest(request), response);
     super.doPost(request, response);
   }
 
   @Override
   public void doGet(final HttpServletRequest request, final HttpServletResponse response)
       throws ServletException {
-    WebComponentManager
-        .manageRequestFor(webComponentControllerClass, GET.class, (HttpRequest) request, response);
+    WebComponentManager.manageRequestFor(webComponentControllerClass, GET.class,
+        toHttpRequest(request), response);
     super.doGet(request, response);
   }
 
@@ -148,5 +146,16 @@ public final class WebComponentRequestRouter<
       destination = "/admin/jsp/errorpageMain.jsp";
     }
     return destination;
+  }
+
+  /**
+   * Usually, the specified {@link HttpServletRequest} object is in fact a {@link HttpRequest}
+   * instance. But in some circumstances, it can be wrapped by tiers filter. In that case, we
+   * decorate it by the {@link HttpRequest} class.
+   * @param request an {@link HttpServletRequest} request.
+   * @return an {@link HttpRequest} instance decorating the specified request.
+   */
+  private HttpRequest toHttpRequest(final HttpServletRequest request) {
+    return request instanceof HttpRequest ? (HttpRequest) request : HttpRequest.decorate(request);
   }
 }

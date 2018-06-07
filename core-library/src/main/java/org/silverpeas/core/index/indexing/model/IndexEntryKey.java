@@ -24,7 +24,8 @@
 package org.silverpeas.core.index.indexing.model;
 
 import java.io.Serializable;
-import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * An IndexEntryKey uniquely identifies an entry in the indexes. An IndexEntryKey is set at the
@@ -46,32 +47,21 @@ public final class IndexEntryKey implements Serializable {
 
   private static final long serialVersionUID = 339617003068469338L;
 
-  /**
-   * The constructor set in a row all the parts of the key.
-   *
-   * @deprecated - parameter space is no more used
-   */
-  public IndexEntryKey(String space, String component, String objectType,
-      String objectId) {
-    // this.space = space;
-    this.component = component;
-    this.objectType = objectType;
-    this.objectId = objectId;
-  }
+  private final String component;
+  private final String objectType;
+  private final String objectId;
 
+  /**
+   * Constructs a new {@link IndexEntryKey} instance that refers the specified object of the given
+   * type handled in the specified component instance.
+   * @param componentId the unique identifier of an application instance in Silverpeas.
+   * @param objectType the type of the object concerned by the index entry.
+   * @param objectId the unique identifier of the object concerned by the index entry.
+   */
   public IndexEntryKey(String componentId, String objectType, String objectId) {
     this.component = componentId;
     this.objectType = objectType;
     this.objectId = objectId;
-  }
-
-  /**
-   * Return the space of the indexed document or the userId if the space is a private working space.
-   *
-   * @deprecated - to use this method is forbidden
-   */
-  public String getSpace() {
-    return null;
   }
 
   /**
@@ -101,7 +91,7 @@ public final class IndexEntryKey implements Serializable {
    */
   @Override
   public String toString() {
-    return getComponent() + SEP + getObjectType() + SEP + getObjectId();
+    return getComponent() + "|" + getObjectType() + "|" + getObjectId();
   }
 
   /**
@@ -127,60 +117,38 @@ public final class IndexEntryKey implements Serializable {
   }
 
   /**
-   * Create a new IndexEntry from s. We must have :
-   *
-   * <PRE>
+   * <p>
+   * Create a new {@link IndexEntryKey} from a text representation of it.
+   * The text representation of the index entry key should be formatted as following:
+   * <code>COMPONENT_INSTANCE_ID|OBJECT_TYPE|OBJECT_ID</code> with
+   * </p>
+   * <ul>
+   *  <li>COMPONENT_INSTANCE_ID the unique identifier of an application instance in Silverpeas,</li>
+   *  <li>OBJECT_TYPE the type of the object being indexed,</li>
+   *  <li>OBJECT_ID the unique identifier of the object being indexed.</li>
+   * </ul>
+   * <p>
+   * For example <code>COMP||ID</code> must give COMP as component instance identifier and ID as
+   * the object identifier but without any object type given.
+   * </p>
+   * <p>We must have:
+   * <code><PRE>
    * create(s).toString().equals(s)
-   * </PRE>
+   * </PRE></code>
+   * </p>
+   * @param s the {@link String} representation of a key of an index entry.
    */
-  static public IndexEntryKey create(String s) {
-    /*
-     * The Tokenizer must return the separators SEP as a missing field must be parsed correctly :
-     * SPACE|COMPO||ID must give (SPACE, COMP, "" , ID).
-     */
-    StringTokenizer Stk = new StringTokenizer(s, SEP, true);
-    // String spa = "";
-    String comp = "";
-    String objType = "";
-    String objId = "";
+  public static IndexEntryKey create(String s) {
+    final Pattern keyPattern = Pattern.compile("^(.*)\\|(.*)\\|(.*)$");
+    final Matcher matcher = keyPattern.matcher(s);
+    if (matcher.matches()) {
+      final String instanceId = matcher.group(1);
+      final String objectType = matcher.group(2);
+      final String objectId   = matcher.group(3);
 
-    /*
-     * if (Stk.hasMoreTokens()) spa = Stk.nextToken(); if (spa.equals(SEP)) spa=""; else if
-     * (Stk.hasMoreTokens()) Stk.nextToken(); // skip one SEP
-     */
-
-    if (Stk.hasMoreTokens()) {
-      comp = Stk.nextToken();
+      return new IndexEntryKey(instanceId, objectType, objectId);
     }
-    if (comp.equals(SEP)) {
-      comp = "";
-    } else if (Stk.hasMoreTokens()) {
-      Stk.nextToken(); // skip one SEP
-    }
-    if (Stk.hasMoreTokens()) {
-      objType = Stk.nextToken();
-    }
-    if (objType.equals(SEP)) {
-      objType = "";
-    } else if (Stk.hasMoreTokens()) {
-      Stk.nextToken(); // skip one SEP
-    }
-    if (Stk.hasMoreTokens()) {
-      objId = Stk.nextToken();
-    }
-
-    // return new IndexEntryKey(spa, comp, objType, objId);
-    return new IndexEntryKey(comp, objType, objId);
+    throw new IllegalArgumentException("The argument " + s + " isn't correctly formatted!");
   }
-  /**
-   * The four parts of an IndexEntryKey are private and fixed at construction time.
-   */
-  // private final String space;
-  private final String component;
-  private final String objectType;
-  private final String objectId;
-  /**
-   * The separator used to write all key parts in a single lucene field.
-   */
-  private static final String SEP = "|";
+
 }
